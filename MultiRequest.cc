@@ -54,7 +54,7 @@ void MultiRequest::setListen(std::string listen)
 }
 
 /**
- * add param
+ * パラメータの設定：FastCGI引数
  *
  * @access public
  * @return String
@@ -62,11 +62,10 @@ void MultiRequest::setListen(std::string listen)
 void MultiRequest::setParam(const char* key, const char* value)
 {
     _params[std::string(key)] = std::string(value);
-
 }
 
 /**
- * add param
+ * パラメータの設定：コンテンツ
  *
  * @access public
  * @return String
@@ -81,6 +80,7 @@ void MultiRequest::setContents(const char* contents)
     request.params = _params;
 
     _requests.push_back(request);
+    _params.clear();
 }
 
 /**
@@ -105,7 +105,6 @@ std::string MultiRequest::exec()
     for (auto &request : _requests) {
         retval[request.params["REQUEST_URI"]] = request.response;
     }
-
     return retval.dump();
 }
 
@@ -138,6 +137,8 @@ void MultiRequest::_worker(uv_work_t *req)
  */
 void MultiRequest::_workerAfter(uv_work_t *req, int status)
 {
+    request_t *request = static_cast<request_t *>(req->data);
+
     return ;
 }
 

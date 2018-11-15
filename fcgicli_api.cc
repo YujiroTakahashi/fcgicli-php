@@ -28,7 +28,7 @@ MultiRequestHandle MultiRequestCreate()
 }
 
 /**
- * free a JumanPP handle
+ * free a MultiRequest handle
  *
  * @access public
  * @param  MultiRequestHandle handle
@@ -123,7 +123,7 @@ char *MultiRequestExec(MultiRequestHandle handle)
     croco::MultiRequest *mreq = static_cast<croco::MultiRequest*>(handle);
     std::string result = mreq->exec();
 
-    char *text = new char[result.size() + 1];
+    char *text = new char[result.size()];
     strcpy(text, result.c_str());
 
     return text;
