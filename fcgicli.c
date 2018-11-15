@@ -9,7 +9,6 @@
 #include "php_fcgicli.h"
 #include "main/SAPI.h"
 
-
 #include "zend_exceptions.h"
 #include "zend_interfaces.h"
 #include "SAPI.h"
@@ -67,7 +66,7 @@ PHP_METHOD(fcgicli, connect)
 	fcgi_obj = Z_FCGICLI_P(object);
 
 	if (0 == port) {
-		res = MultiRequestConnect(fcgi_obj->fcgicli, listen);
+		res = MultiRequestUnixDomein(fcgi_obj->fcgicli, listen);
 	} else {
 		res = MultiRequestConnect(fcgi_obj->fcgicli, listen, port);
 	}
@@ -76,7 +75,7 @@ PHP_METHOD(fcgicli, connect)
 }
 /* }}} */
 
-/* {{{ proto long fcgicli::setParams(array params, string contents)
+/* {{{ proto void fcgicli::setParams(array params, string contents)
  */
 PHP_METHOD(fcgicli, setParams)
 {
@@ -91,9 +90,9 @@ PHP_METHOD(fcgicli, setParams)
 	HashTable *ht;
 	int idx, num_params;
 
-	ZEND_PARSE_PARAMETERS_START(1, 2)
+	ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_ARRAY(params)
-        Z_PARAM_STRING(contents, contents_len)
+		Z_PARAM_STRING(contents, contents_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
 	fcgi_obj = Z_FCGICLI_P(object);
@@ -125,8 +124,6 @@ PHP_METHOD(fcgicli, exec)
 	php_fcgicli_object *fcgi_obj;
 	zval *object = getThis();
 	char *resutl;
-	size_t word_len;
-	JPStr str;
 
 	fcgi_obj = Z_FCGICLI_P(object);
 
@@ -145,19 +142,24 @@ PHP_METHOD(fcgicli, exec)
 ZEND_BEGIN_ARG_INFO(arginfo_fcgicli_void, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_fcgicli_one_opt, 0, ZEND_RETURN_VALUE, 0)
+	ZEND_ARG_INFO(0, arg1)
+	ZEND_ARG_INFO(0, arg2)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_fcgicli_two, 0, 0, 1)
-	ZEND_ARG_INFO(0, first)
-	ZEND_ARG_INFO(0, second)
+	ZEND_ARG_INFO(0, arg1)
+	ZEND_ARG_INFO(0, arg2)
 ZEND_END_ARG_INFO()
 /* }}} */
 
 
 /* {{{ php_sfcgicli_class_methods */
 static zend_function_entry php_fcgicli_class_methods[] = {
-	PHP_ME(fcgicli, __construct, arginfo_fcgicli_void, ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
-	PHP_ME(fcgicli, connect,     arginfo_fcgicli_two,  ZEND_ACC_PUBLIC)
-	PHP_ME(fcgicli, setParams, 	 arginfo_fcgicli_two,  ZEND_ACC_PUBLIC)
-	PHP_ME(fcgicli, exec,        arginfo_fcgicli_void, ZEND_ACC_PUBLIC)
+	PHP_ME(fcgicli, __construct, arginfo_fcgicli_void,    ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
+	PHP_ME(fcgicli, connect,     arginfo_fcgicli_one_opt, ZEND_ACC_PUBLIC)
+	PHP_ME(fcgicli, setParams, 	 arginfo_fcgicli_two,     ZEND_ACC_PUBLIC)
+	PHP_ME(fcgicli, exec,        arginfo_fcgicli_void,    ZEND_ACC_PUBLIC)
 
 	PHP_FE_END
 };
@@ -207,7 +209,7 @@ PHP_MINIT_FUNCTION(fcgicli)
 	memcpy(&fcgicli_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 
 	/* Register Fcgicli Class */
-	INIT_CLASS_ENTRY(ce, "Fcgicli", php_fcgicli_class_methods);
+	INIT_CLASS_ENTRY(ce, "fcgicli", php_fcgicli_class_methods);
 	ce.create_object = php_fcgicli_object_new;
 	fcgicli_object_handlers.offset = XtOffsetOf(php_fcgicli_object, zo);
 	fcgicli_object_handlers.clone_obj = NULL;

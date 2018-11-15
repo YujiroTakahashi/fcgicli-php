@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <uv.h>
 #include "fcgicli_api.h"
+#include "MultiRequest.h"
 
 /**
  * get MultiRequest size
@@ -59,10 +60,10 @@ void MultiRequestFreeText(char *text)
  * @param  const int port
  * @return int
  */
-MultiRequestConnect(MultiRequestHandle handle, const char* listen, const int port)
+int MultiRequestConnect(MultiRequestHandle handle, const char* listen, const int port)
 {
     croco::MultiRequest *mreq = static_cast<croco::MultiRequest*>(handle);
-    mreq->connect(listen, port);
+    mreq->setListen(listen, port);
     return FCGICLI_TRUE;
 }
 
@@ -74,10 +75,10 @@ MultiRequestConnect(MultiRequestHandle handle, const char* listen, const int por
  * @param  const char* listen
  * @return int
  */
-MultiRequestConnect(MultiRequestHandle handle, const char* listen)
+int MultiRequestUnixDomein(MultiRequestHandle handle, const char* listen)
 {
     croco::MultiRequest *mreq = static_cast<croco::MultiRequest*>(handle);
-    mreq->connect(listen);
+    mreq->setListen(listen);
     return FCGICLI_TRUE;
 }
 
@@ -89,7 +90,7 @@ MultiRequestConnect(MultiRequestHandle handle, const char* listen)
  * @param  const char* word
  * @return JPStr
  */
-int MultiRequestSetParams(MultiRequestHandle handle, const char* key, const char* value)
+int MultiRequestSetParam(MultiRequestHandle handle, const char* key, const char* value)
 {
     croco::MultiRequest *mreq = static_cast<croco::MultiRequest*>(handle);
     mreq->setParam(key, value);

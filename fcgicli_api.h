@@ -6,7 +6,7 @@
 
 #ifdef __cplusplus
 
-#include "fcgicli.h"
+#include "fastcgi_cli.h"
 #include "json.hpp"
 
 extern "C" {
@@ -35,7 +35,7 @@ FCGICLI_API MultiRequestHandle MultiRequestCreate();
 FCGICLI_API void MultiRequestFree(MultiRequestHandle handle);
 FCGICLI_API void MultiRequestFreeText(char *text);
 FCGICLI_API int MultiRequestConnect(MultiRequestHandle handle, const char* listen, const int port);
-FCGICLI_API int MultiRequestConnect(MultiRequestHandle handle, const char* listen);
+FCGICLI_API int MultiRequestUnixDomein(MultiRequestHandle handle, const char* listen);
 FCGICLI_API int MultiRequestSetParam(MultiRequestHandle handle, const char* key, const char* value);
 FCGICLI_API int MultiRequestSetContents(MultiRequestHandle handle, const char* contents);
 FCGICLI_API char *MultiRequestExec(MultiRequestHandle handle);

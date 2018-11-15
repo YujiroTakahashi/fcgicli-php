@@ -1,37 +1,37 @@
 /**
- * fcgi_FCgiCli.h
+ * fastcgi_cli.h
  *
  * C++ versions 4.4.5
  *
- *      fcgi_FCgiCli : https://github.com/Yujiro3/fcgicli
- *      Copyright (c) 2011-2013 sheeps.me All Rights Reserved.
+ *      fcgicli-php : https://github.com/YujiroTakahashi/fcgicli-php
+ *      Copyright (c) 2018 CROCO All Rights Reserved.
  *
- * @package         fcgi_FCgiCli
- * @copyright       Copyright (c) 2011-2013 sheeps.me
- * @author          Yujiro Takahashi <yujiro3@gmail.com>
+ * @package         fcgicli-php
+ * @copyright       Copyright (c) 2018 CROCO
+ * @author          Yujiro Takahashi <yujiro@cro-co.co.jp>
  * @filesource
  */
 
-#ifndef __CROCO_FCGCLI_H__
-#define __CROCO_FCGCLI_H__
+#ifndef __CROCO_FASTCGI_CLI_H__
+#define __CROCO_FASTCGI_CLI_H__
 
 #include <string>
-#include <map>
+#include <unordered_map>
 
 namespace croco {
 /**
- * FCGIプロトコル開始リクエスト本文クラス
+ * FastCGIプロトコル開始リクエスト本文クラス
  *
- * @package     FCGIFCgiCli
- * @author      Yujiro Takahashi <yujiro3@gmail.com>
+ * @package     FastCGICli
+ * @author      Yujiro Takahashi <yujiro@cro-co.co.jp>
  */
-class FCgiCli {
+class FastCGICli {
 public:
     /**
      * 2次元配列コンテナの型定義
-     * @typedef std::map<std::string, std::string>
+     * @typedef std::unordered_map<std::string, std::string>
      */
-    typedef std::map<std::string, std::string> param_t;
+    typedef std::unordered_map<std::string, std::string> param_t;
 
     /**
      * 文字の ASCII 値を返す
@@ -150,9 +150,9 @@ private:
 
 public:
 
-    FCgiCli(std::string listen, int port);
-    FCgiCli(std::string listen);
-    ~FCgiCli();
+    FastCGICli(std::string listen, int port);
+    FastCGICli(std::string listen);
+    ~FastCGICli();
     bool send(param_t &params, std::string &stdin);
     std::string request(param_t &params, std::string &stdin);
     std::string multiRequest(param_t &params, std::string &stdin);
@@ -168,4 +168,4 @@ private:
 
 }  // namespace croco
 
-#endif // #ifndef __CROCO_FCGCLI_H__
+#endif // #ifndef __CROCO_FASTCGI_CLI_H__

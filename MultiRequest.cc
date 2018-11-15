@@ -11,8 +11,8 @@
  * @author          Yujiro Takahashi <yujiro3@gmail.com>
  * @filesource
  */
-
-#include "fcgicli.h"
+#include <iostream>
+#include "fastcgi_cli.h"
 #include "json.hpp"
 #include "MultiRequest.h"
 
@@ -35,7 +35,7 @@ MultiRequest::~MultiRequest()
  * @param string listen
  * @param int port
  */
-MultiRequest::connect(std::string listen, int port)
+void MultiRequest::setListen(std::string listen, int port)
 {
     _listen = listen;
     _port = port;
@@ -47,7 +47,7 @@ MultiRequest::connect(std::string listen, int port)
  * @access public
  * @param string listen
  */
-MultiRequest::connect(std::string listen)
+void MultiRequest::setListen(std::string listen)
 {
     _listen = listen;
     _port = 0;
@@ -78,7 +78,7 @@ void MultiRequest::setContents(const char* contents)
     request.listen = _listen;
     request.port = _port;
     request.contents = std::string(contents);
-    equest.params = _params;
+    request.params = _params;
 
     _requests.push_back(request);
 }
@@ -120,10 +120,10 @@ void MultiRequest::_worker(uv_work_t *req)
     request_t *request = static_cast<request_t *>(req->data);
 
     if (0 == request->port) {
-        FCgiCli fcli(request->listen);
+        FastCGICli fcli(request->listen);
         request->response = fcli.request(request->params, request->contents);
     } else {
-        FCgiCli fcli(request->listen, request->port);
+        FastCGICli fcli(request->listen, request->port);
         request->response = fcli.request(request->params, request->contents);
     }
 

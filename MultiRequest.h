@@ -51,8 +51,8 @@ private:
 
 public:
     ~MultiRequest();
-    void connect(std::string listen, int port);
-    void connect(std::string listen);
+    void setListen(std::string listen, int port);
+    void setListen(std::string listen);
     void setParam(const char* key, const char* value);
     void setContents(const char* contents);
     std::string exec();

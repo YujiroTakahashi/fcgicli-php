@@ -1,14 +1,14 @@
 /**
- * fcgi_FCgiCli.cpp
+ * fastcgi_cli.cc
  *
  * C++ versions 4.4.5
  *
- *      fcgi_FCgiCli : https://github.com/Yujiro3/fcgicli
- *      Copyright (c) 2011-2013 sheeps.me All Rights Reserved.
+ *      FastCGICli-php : https://github.com/YujiroTakahashi/FastCGICli-php
+ *      Copyright (c) 2018 CROCO All Rights Reserved.
  *
- * @package         fcgi_FCgiCli
- * @copyright       Copyright (c) 2011-2013 sheeps.me
- * @author          Yujiro Takahashi <yujiro3@gmail.com>
+ * @package         FastCGICli-php
+ * @copyright       Copyright (c) 2018 CROCO
+ * @author          Yujiro Takahashi <yujiro@cro-co.co.jp>
  * @filesource
  */
 
@@ -30,7 +30,7 @@
 #include <unistd.h>
 #include <uv.h>
 
-#include "fcgicli.h"
+#include "fastcgi_cli.h"
 
 namespace croco {
 
@@ -41,7 +41,7 @@ namespace croco {
  * @param string listen
  * @param int port
  */
-FCgiCli::FCgiCli(std::string listen, int port) {
+FastCGICli::FastCGICli(std::string listen, int port) {
     struct sockaddr_in *sin;
     sin = new struct sockaddr_in;
     bzero(sin, sizeof(struct sockaddr_in));
@@ -60,7 +60,7 @@ FCgiCli::FCgiCli(std::string listen, int port) {
  * @access public
  * @param string listen
  */
-FCgiCli::FCgiCli(std::string listen) {
+FastCGICli::FastCGICli(std::string listen) {
     struct sockaddr_un *sun;
     sun = new struct sockaddr_un;
 
@@ -77,7 +77,7 @@ FCgiCli::FCgiCli(std::string listen) {
  *
  * @access public
  */
-FCgiCli::~FCgiCli() {
+FastCGICli::~FastCGICli() {
     delete _address;
 }
 
@@ -88,7 +88,7 @@ FCgiCli::~FCgiCli() {
  * @param String stdin Content
  * @return String
  */
-bool FCgiCli::send(param_t &params, std::string &stdin) {
+bool FastCGICli::send(param_t &params, std::string &stdin) {
     std::string record("");
 
     _buildRecord(record, params, stdin);
@@ -113,7 +113,7 @@ bool FCgiCli::send(param_t &params, std::string &stdin) {
  * @param String stdin Content
  * @return String
  */
-std::string FCgiCli::request(param_t &params, std::string &stdin) {
+std::string FastCGICli::request(param_t &params, std::string &stdin) {
     std::string record("");
     _buildRecord(record, params, stdin);
 
@@ -152,7 +152,7 @@ std::string FCgiCli::request(param_t &params, std::string &stdin) {
  * @param String stdin Content
  * @return void
  */
-void FCgiCli::_buildRecord(std::string &record, param_t &params, std::string &stdin)
+void FastCGICli::_buildRecord(std::string &record, param_t &params, std::string &stdin)
 {
     std::stringstream conlength;
     conlength << stdin.length();
@@ -191,7 +191,7 @@ void FCgiCli::_buildRecord(std::string &record, param_t &params, std::string &st
  * @param  string content
  * @param  int requestId
  */
-void FCgiCli::_buildPacket(std::string &record, int type, std::string &content, int requestId) {
+void FastCGICli::_buildPacket(std::string &record, int type, std::string &content, int requestId) {
     int contentLength = content.size();
 
     assert(contentLength >= 0 && contentLength <= MAX_LENGTH);
@@ -215,7 +215,7 @@ void FCgiCli::_buildPacket(std::string &record, int type, std::string &content, 
  * @param string value Value
  * @return string FastCGI Name value pair
  */
-std::string FCgiCli::_buildNvpair(std::string name, std::string value) {
+std::string FastCGICli::_buildNvpair(std::string name, std::string value) {
     std::string nvpair("");
 
     int nlen = name.size();
@@ -249,7 +249,7 @@ std::string FCgiCli::_buildNvpair(std::string name, std::string value) {
  * @access private
  * @return void
  */
-void FCgiCli::_readPacketHeader(header_t &header) {
+void FastCGICli::_readPacketHeader(header_t &header) {
     char pack[HEADER_LEN];
 
     int len = read(_sock, pack, sizeof(pack));
@@ -270,7 +270,7 @@ void FCgiCli::_readPacketHeader(header_t &header) {
  * @access private
  * @return void
  */
-void FCgiCli::_readPacket(header_t &header, std::string &response) {
+void FastCGICli::_readPacket(header_t &header, std::string &response) {
     /* ヘッダーデータの読込 */
     _readPacketHeader(header);
 
@@ -306,7 +306,7 @@ void FCgiCli::_readPacket(header_t &header, std::string &response) {
  * @access private
  * @return void
  */
-bool FCgiCli::_connect() {
+bool FastCGICli::_connect() {
     if (connect(_sock, _address, _addrlen)) {
         return false;
     }
