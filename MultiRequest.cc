@@ -105,6 +105,8 @@ std::string MultiRequest::exec()
     for (auto &request : _requests) {
         retval[request.params["REQUEST_URI"]] = request.response;
     }
+    _requests.clear();
+
     return retval.dump();
 }
 

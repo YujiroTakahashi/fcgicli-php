@@ -41,15 +41,17 @@ namespace croco {
  * @param string listen
  * @param int port
  */
-FastCGICli::FastCGICli(std::string listen, int port) {
+FastCGICli::FastCGICli(std::string listen, int port)
+{
     struct sockaddr_in *sin;
     sin = new struct sockaddr_in;
-    bzero(sin, sizeof(struct sockaddr_in));
-    sin->sin_family = AF_INET;
-    sin->sin_addr.s_addr = inet_addr(listen.c_str());
-    sin->sin_port = htons(port);
 
-    _sock = socket(AF_INET, SOCK_STREAM, 0);
+    bzero(sin, sizeof(struct sockaddr_in));
+    sin->sin_family      = AF_INET;
+    sin->sin_addr.s_addr = inet_addr(listen.c_str());
+    sin->sin_port        = htons(port);
+
+    _sock    = socket(AF_INET, SOCK_STREAM, 0);
     _address = (struct sockaddr *)sin;
     _addrlen = sizeof(*sin);
 }
@@ -60,14 +62,16 @@ FastCGICli::FastCGICli(std::string listen, int port) {
  * @access public
  * @param string listen
  */
-FastCGICli::FastCGICli(std::string listen) {
+FastCGICli::FastCGICli(std::string listen)
+{
     struct sockaddr_un *sun;
     sun = new struct sockaddr_un;
 
     bzero(sun, sizeof(struct sockaddr_un));
     sun->sun_family = AF_LOCAL;
     strcpy(sun->sun_path, listen.c_str());
-    _sock = socket(PF_UNIX, SOCK_STREAM, 0);
+
+    _sock    = socket(PF_UNIX, SOCK_STREAM, 0);
     _address = (struct sockaddr *)sun;
     _addrlen = sizeof(*sun);
 }
@@ -77,236 +81,228 @@ FastCGICli::FastCGICli(std::string listen) {
  *
  * @access public
  */
-FastCGICli::~FastCGICli() {
+FastCGICli::~FastCGICli()
+{
     delete _address;
 }
 
 /**
- * Execute a send to the FastCGI application
+ * FastCGIアプリへ送信
  *
  * @access public
- * @param String stdin Content
- * @return String
- */
-bool FastCGICli::send(param_t &params, std::string &stdin) {
-    std::string record("");
-
-    _buildRecord(record, params, stdin);
-
-    if (!_connect()) {
-        return false;
-    }
-
-    write(_sock, record.data(), record.size());
-
-    if (_sock > 0) {
-        close(_sock);
-    }
-
-    return true;
-}
-
-/**
- * Execute a request to the FastCGI application
- *
- * @access public
- * @param String stdin Content
- * @return String
- */
-std::string FastCGICli::request(param_t &params, std::string &stdin) {
-    std::string record("");
-    _buildRecord(record, params, stdin);
-
-    if (!_connect()) {
-        return std::string("Unable to connect to FastCGI application.");
-    }
-    write(_sock, record.data(), record.size());
-
-    header_t header = {0, 0, 0, 0, 0, 0, 0};
-    std::string response("");
-    do {
-        _readPacket(header, response);
-    } while (header.type != END_REQUEST);
-
-    if (_sock > 0) {
-        close(_sock);
-    }
-
-    /* 終了チェック */
-    if (header.flag == REQUEST_COMPLETE) {
-        return response;
-    } else if (header.flag == CANT_MPX_CONN) {
-        return std::string("This app can't multiplex [CANT_MPX_CONN]");
-    } else if (header.flag == OVERLOADED) {
-        return std::string("New request rejected; too busy [OVERLOADED]");
-    } else if (header.flag == UNKNOWN_ROLE) {
-        return std::string("Role value not known [UNKNOWN_ROLE]");
-    }
-    return response;
-}
-
-/**
- * レコードの作成
- *
- * @access public
- * @param String stdin Content
+ * @param param_t params Param
+ * @param string stdin Content
  * @return void
  */
-void FastCGICli::_buildRecord(std::string &record, param_t &params, std::string &stdin)
+void FastCGICli::send(param_t &params, std::string &stdin)
 {
+    _connect();
+    _send(params, stdin);
+
+    if (_sock > 0) {
+        close(_sock);
+    }
+}
+
+/**
+ * FastCGIアプリへ送受信
+ *
+ * @access public
+ * @param param_t params Param
+ * @param string stdin Content
+ * @return string
+ */
+std::string FastCGICli::request(param_t &params, std::string &stdin)
+{
+    _connect();
+    _send(params, stdin);
+
+    /* 末尾まで読み込み */
+    int type;
+    std::string response("");
+    do {
+        type = _read(response);
+    } while (type != FCGI_END_REQUEST);
+
+    if (_sock > 0) {
+        close(_sock);
+    }
+
+    std::string::size_type pos = response.find("\r\n\r\n");
+    return response.substr(pos + 4);
+}
+
+/**
+ * ヘッダーパケットの送信
+ *
+ * @access private
+ * @param param_t params Param
+ * @param std::string stdin
+ * @return void
+ */
+void FastCGICli::_send(param_t &params, std::string &stdin)
+{
+    _requestId = stdin.length() % 50;
     std::stringstream conlength;
     conlength << stdin.length();
-
     params["CONTENT_LENGTH"] = conlength.str();
 
-    std::string head("");
-    head += char(0);
-    head += char(1);    // Responder
-    head += char(0);    // Keep alive
-    head += char(0); head += char(0); head += char(0); head += char(0); head += char(0);
-    _buildPacket(record, BEGIN_REQUEST, head, 1);
+    /* リクエストの開始準備 */
+    FCGI_BeginRequestBody body;
+    body.roleB1 = 0x00;
+    body.roleB0 = FCGI_RESPONDER;
+    body.flags  = 0x000;
+    bzero(body.reserved, sizeof(body.reserved));
+    _write(FCGI_BEGIN_REQUEST, (char*)&body, sizeof(body));
 
-    std::string paramsRequest("");
+    /* FCGIパラメータの書き込み */
+    FCGX_Stream *paramsStream = FCGX_CreateWriter(_sock, _requestId, WRITER_LEN, FCGI_PARAMS);
+
     for (auto &param : params) {
-        paramsRequest += _buildNvpair(param.first, param.second);
+        _pair(paramsStream, param.first.c_str(), param.second.c_str());
     }
+    FCGX_FClose(paramsStream);
+    FCGX_FreeStream(&paramsStream);
 
-    std::string empty("");
-    if (paramsRequest.size() > 0) {
-        _buildPacket(record, PARAMS, paramsRequest, 1);
-    }
-    _buildPacket(record, PARAMS, empty, 1);
-
-    if (stdin.size() > 0) {
-        _buildPacket(record, STDIN, stdin, 1);
-    }
-    _buildPacket(record, STDIN, empty, 1);
-}
-
-/**
- * パケット作成
- *
- * @access private
- * @param  int type
- * @param  string content
- * @param  int requestId
- */
-void FastCGICli::_buildPacket(std::string &record, int type, std::string &content, int requestId) {
-    int contentLength = content.size();
-
-    assert(contentLength >= 0 && contentLength <= MAX_LENGTH);
-
-    record += char(VERSION);                            // version
-    record += char(type);                               // type
-    record += char((requestId     >> 8) & 0xff);        // requestIdB1
-    record += char((requestId         ) & 0xff);        // requestIdB0
-    record += char((contentLength >> 8) & 0xff);        // contentLengthB1
-    record += char((contentLength     ) & 0xff);        // contentLengthB0
-    record += char(0);                                  // paddingLength
-    record += char(0);                                  // reserved
-    record.append(content.data(), content.size());      // content
-}
-
-/**
- * FastCGIヘッダー部分の作製
- *
- * @access private
- * @param string name Name
- * @param string value Value
- * @return string FastCGI Name value pair
- */
-std::string FastCGICli::_buildNvpair(std::string name, std::string value) {
-    std::string nvpair("");
-
-    int nlen = name.size();
-    if (nlen < 128) {
-        nvpair  = (unsigned char) nlen;                     // name LengthB0
-    } else {
-        nvpair  = (unsigned char) ((nlen >> 24) | 0x80);    // name LengthB3
-        nvpair += (unsigned char) ((nlen >> 16) & 0xff);    // name LengthB2
-        nvpair += (unsigned char) ((nlen >>  8) & 0xff);    // name LengthB1
-        nvpair += (unsigned char) (nlen & 0xff);            // name LengthB0
-    }
-
-    int vlen = value.size();
-    if (vlen < 128) {
-        nvpair += (unsigned char) vlen;                     // value LengthB0
-    } else {
-        nvpair += (unsigned char) ((vlen >> 24) | 0x80);    // value LengthB3
-        nvpair += (unsigned char) ((vlen >> 16) & 0xff);    // value LengthB2
-        nvpair += (unsigned char) ((vlen >>  8) & 0xff);    // value LengthB1
-        nvpair += (unsigned char) (vlen & 0xff);            // value LengthB0
-    }
-    nvpair += name + value;
-
-    /* nameData & valueData */
-    return nvpair;
+    /* FastCGIコンテンツの送信 */
+    _write(FCGI_STDIN, stdin.c_str(), stdin.length());
 }
 
 /**
  * ヘッダーパケットの読込
  *
  * @access private
+ * @param FCGX_Stream *paramsStream
+ * @param const char *key
+ * @param const char *value
  * @return void
  */
-void FastCGICli::_readPacketHeader(header_t &header) {
-    char pack[HEADER_LEN];
+void FastCGICli::_pair(FCGX_Stream *paramsStream, const char *key, const char *value)
+{
+    char header[HEADER_LEN];
+    char *hedptr = &header[0];
 
-    int len = read(_sock, pack, sizeof(pack));
-    if (len < 0) {
-        throw "Unable to read response header.";
+    int keyLength = strlen(key);
+    if (keyLength < 0x80) {
+        *hedptr++ = (unsigned char) keyLength;
+    } else {
+        *hedptr++ = (unsigned char)((keyLength >> 24) | 0x80);
+        *hedptr++ = (unsigned char)(unsigned char) (keyLength >> 16);
+        *hedptr++ = (unsigned char)(unsigned char) (keyLength >> 8);
+        *hedptr++ = (unsigned char)(unsigned char)  keyLength;
     }
-    header.version       = ord(pack[0]);
-    header.type          = ord(pack[1]);
-    header.requestId     = (ord(pack[2]) << 8) + ord(pack[3]);
-    header.contentLength = (ord(pack[4]) << 8) + ord(pack[5]);
-    header.paddingLength = ord(pack[6]);
-    header.reserved      = ord(pack[7]);
+
+    int valueLength = strlen(value);
+    if (valueLength < 0x80) {
+        *hedptr++ = (unsigned char) valueLength;
+    } else {
+        *hedptr++ = (unsigned char)((valueLength >> 24) | 0x80);
+        *hedptr++ = (unsigned char)(unsigned char) (valueLength >> 16);
+        *hedptr++ = (unsigned char)(unsigned char) (valueLength >> 8);
+        *hedptr++ = (unsigned char)(unsigned char)  valueLength;
+    }
+
+    /* ヘッダーの書き込み */
+    int result = FCGX_PutStr(&header[0], hedptr - &header[0], paramsStream);
+    if (result != hedptr - &header[0]) {
+        throw "Unable to put header buffer.";
+    }
+
+    /* キーの書き込み */
+    result = FCGX_PutStr(key, keyLength, paramsStream);
+    if (result !=  keyLength) {
+        throw "Unable to put key buffer.";
+    }
+
+    /* 値の書き込み */
+    result = FCGX_PutStr(value, valueLength, paramsStream);
+    if (result !=  valueLength) {
+        throw "Unable to putvalue buffer.";
+    }
 }
 
 /**
- * パケットの読み込み
+ * FastCGIアプリへの書き込み
  *
  * @access private
- * @return void
+ * @param unsigned char type
+ * @param const char *content
+ * @param int length
+ * @return int
  */
-void FastCGICli::_readPacket(header_t &header, std::string &response) {
-    /* ヘッダーデータの読込 */
-    _readPacketHeader(header);
+int FastCGICli::_write(unsigned char type, const char *content, int length)
+{
+    FCGI_Header header;
 
-    if (header.contentLength > 0) {
-        char* buff = new char[header.contentLength];
-        int length = read(_sock, buff, header.contentLength);
-        if (length < 0) {
-            throw "Unable to read content buffer.";
-        }
+    header.version         = (unsigned char) FCGI_VERSION_1;
+    header.type            = (unsigned char) type;
+    header.requestIdB1     = (unsigned char) ((_requestId >> 8) & 0xff);
+    header.requestIdB0     = (unsigned char) ((_requestId     ) & 0xff);
+    header.contentLengthB1 = (unsigned char) ((length >> 8    ) & 0xff);
+    header.contentLengthB0 = (unsigned char) ((length         ) & 0xff);
+    header.paddingLength   = (unsigned char) 0;
+    header.reserved        = (unsigned char) 0;
 
-        if (header.type == STDOUT || header.type == STDERR) {
-            response.append(buff);
-        } else if (header.type == END_REQUEST) {
-            header.flag = buff[4];
-        }
-        delete [] buff;
+    int count = -1;
+    /* ヘッダーの送信 */
+    count = write(_sock, (char *)&header, HEADER_LEN);
+    if (count != HEADER_LEN) {
+        throw "Unable to write fcgi header.";
     }
 
-    /* Paddingデータの読込 */
-    if (header.paddingLength > 0) {
-        char* padding = new char[header.paddingLength];
-        int len = read(_sock, padding, header.paddingLength);
-        delete [] padding;
-        if (len < 0) {
-            throw "Unable to read padding buffer.";
+    /* コンテンツの送信 */
+    count = write(_sock, content, length);
+    if (count != length) {
+        throw "Unable to write fcgi content.";
+    }
+
+    return HEADER_LEN + length;
+}
+
+/**
+ * FastCGIアプリからの読み込み
+ *
+ * @access private
+ * @param string response
+ * @return int
+ */
+int FastCGICli::_read(std::string &response)
+{
+    FCGI_Header *header = new FCGI_Header();
+
+    int count = -1;
+    count = read(_sock, (char *)header, sizeof(header));
+    if (count != HEADER_LEN) {
+        throw "Unable to read fcgi header.";
+    }
+    int length = (header->contentLengthB1 << 8) + header->contentLengthB0;
+
+    if (length > 0) {
+        char *buf = new char[(length + header->paddingLength + 1)];
+        count = read(_sock, buf, length + header->paddingLength);
+        if (count != length + header->paddingLength) {
+            throw "Unable to read fcgi content.";
         }
-    } // if (header.paddingLength > 0)
+        if (header->type == FCGI_STDOUT) {
+            response.append(buf);
+        }
+        delete[] buf;
+    } // if (length > 0)
+
+    count = header->type;
+    delete header;
+
+    return count;
 }
 
 /**
  * FastCGIサーバへ接続
  *
  * @access private
- * @return void
+ * @return boolean
  */
-bool FastCGICli::_connect() {
+bool FastCGICli::_connect()
+{
     if (connect(_sock, _address, _addrlen)) {
         return false;
     }

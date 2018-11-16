@@ -41,14 +41,48 @@ if test "$PHP_FCGICLI" != "no"; then
     -L$UV_DIR/lib -lm
   ])
 
-  # --with-uv -> check for lib and symbol presence
-  LIBNAME="uv"
-  LIBSYMBOL="uv_version"
+
+  # --with-fcgi -> check with-path
+  SEARCH_PATH="/usr/local /usr"
+  SEARCH_FOR="/include/fcgiapp.h"
+  if test -r $PHP_FCGI/$SEARCH_FOR; then # path given as parameter
+    FCGI_DIR=$PHP_FCGI
+  else # search default path list
+    AC_MSG_CHECKING([for libfcgi files in default path])
+    for i in $SEARCH_PATH ; do
+      if test -r $i/$SEARCH_FOR; then
+        FCGI_DIR=$i
+        AC_MSG_RESULT(found in $i)
+      fi
+    done
+  fi
+
+  if test -z "$FCGI_DIR"; then
+    AC_MSG_RESULT([not found])
+    AC_MSG_ERROR([Please reinstall the libfcgi distribution, "$PHP_FCGI"])
+  fi
+
+  # --with-fcgi -> add include path
+  PHP_ADD_INCLUDE($FCGI_DIR/include)
+
+  PHP_CHECK_LIBRARY(fcgi, FCGX_Init,
+  [
+    PHP_ADD_LIBRARY_WITH_PATH(fcgi, $FCGI_DIR/lib, FCGI_SHARED_LIBADD)
+    AC_DEFINE(HAVE_FCGILIB,1,[ ])
+  ],[
+    AC_MSG_ERROR([wrong fcgi library version or library not found])
+  ],[
+    -L$UV_DIR/lib -lm
+  ])
+
+
+
 
   PHP_SUBST(FCGICLI_SHARED_LIBADD)
 
   PHP_ADD_LIBRARY(stdc++, 1, FCGICLI_SHARED_LIBADD)
   PHP_ADD_LIBRARY(uv, 1, FCGICLI_SHARED_LIBADD)
+  PHP_ADD_LIBRARY(fcgi, 1, FCGICLI_SHARED_LIBADD)
   CFLAGS="-O3 -funroll-loops"
   CXXFLAGS="-pthread -std=c++14 -O3 -funroll-loops -Wno-unused-result"
 
